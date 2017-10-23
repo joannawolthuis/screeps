@@ -6,6 +6,33 @@
  * var mod = require('helper.functies');
  * mod.thing == 'a thing'; // true
  */
+ 
+var jobs = {scout:{
+            jobTitle: 'scout',
+            jobCount: 0,
+            jobBody: [MOVE]
+            },
+            harvester:{
+             jobTitle: 'harvester',
+             jobCount: 30,
+             jobBody: [WORK, WORK, CARRY, MOVE]
+            },
+            upgrader:{
+             jobTitle: 'upgrader',
+             jobCount: 10,
+             jobBody: [WORK, WORK, CARRY, MOVE] 
+            },
+            builder:{
+             jobTitle: 'builder',
+             jobCount: 10,
+             jobBody: [WORK, WORK, CARRY, MOVE] 
+            },
+            repairman:{
+             jobTitle: 'repairman',
+             jobCount: 10,
+             jobBody: [WORK, CARRY, MOVE]   
+            }
+};
 
 var self = module.exports = {
     makeName: function() {
@@ -78,6 +105,52 @@ var self = module.exports = {
         var ID = _.max( allSource, function( source ){ return source.energyPercent; }).id;
         }
         return(ID)
+    },
+    getNextJob: function(){
+        var allJobs = [];
+        // Calculate the percentage of energy in each container.
+        for ( i in jobs ) {
+            var employed = _(Game.creeps).filter( { memory:{ role: jobs[i].jobTitle }}).size();
+            allJobs.push( { employedPercent: ( ( employed / jobs[i].jobCount ) * 100 ), name: jobs[i].jobTitle } );
+        }
+        var nextJob = _.min( allJobs, function( job ){ return job.employedPercent; }).name;
+        return(nextJob);
+    },
+    getNextTarget: function(creepName){
+        var creep = Game.creeps[creepName];
+        console.log(creepName);
+        //if(!creep){return(null)};
+        var targets = creep.room.find(FIND_SOURCES);
+        var allTargets = [];
+        // Calculate the percentage of energy in each container.
+        for ( i in targets ) {
+            var targetID = targets[i].id;
+            var targeted = _(Game.creeps).filter( { memory:{ target: targetID, role: creep.memory.role }}).size();
+            // ------------
+            if(targeted > 0){
+                allTargets.push({targetedPercent: ( ( targeted / jobs[creep.memory.role].jobCount ) * 100 ), name: targetID});
+            } else{
+                allTargets.push({targetedPercent: 0, name: targetID});
+            }
+        }
+        var nextTarget = _.min( allTargets, function( t ){ return t.targetedPercent; } ).name;
+        return(nextTarget);
+    },
+    getBodyCost: function(body){
+        var _ = require("lodash");
+        var bodyCost = {
+          "move": 50,
+          "carry": 50,
+          "work": 20,
+          "heal": 200,
+          "tough": 20,
+          "attack": 80,
+          "ranged_attack": 150
+        };
+        var cost = 0;
+        _.forEach(body, function(part) { cost += bodyCost[part]; });
+        // ----------
+        return(cost);
     }
 }
 

@@ -4,27 +4,32 @@ var helper = require('helper.functies');
 var currSpawn = 'FirstSpawn';
 var currRoom =  Game.spawns[currSpawn].room.name;
 // ---------------------------------
-
-var jobs = [{
+var jobs = {scout:{
             jobTitle: 'scout',
             jobCount: 0,
             jobBody: [MOVE]
             },
-            {
+            harvester:{
              jobTitle: 'harvester',
-             jobCount: 12,
+             jobCount: 10,
              jobBody: [WORK, WORK, CARRY, MOVE]
-            },{
+            },
+            upgrader:{
              jobTitle: 'upgrader',
-             jobCount: 12,
+             jobCount: 10,
              jobBody: [WORK, WORK, CARRY, MOVE] 
             },
-            {
+            builder:{
              jobTitle: 'builder',
-             jobCount: 20,
+             jobCount: 10,
              jobBody: [WORK, WORK, CARRY, MOVE] 
-            }];
-            
+            },
+            repairman:{
+             jobTitle: 'repairman',
+             jobCount: 5,
+             jobBody: [WORK, CARRY, MOVE]   
+            }
+};
 // =================================
 var fertile = true;
 var go = true;
@@ -38,8 +43,8 @@ module.exports.loop = function () {
         
         // Send creeps to do work
         
-        for(let creepIndex in Game.creeps) {
-            core.goWork(creepIndex);
+        for(let creepName in Game.creeps) {
+            core.goWork(creepName);
         }
 
         // Spawn babies <3 
@@ -48,26 +53,19 @@ module.exports.loop = function () {
         if(fertile == true && !spawnObj.spawning){
             let currCreeps = helper.countBugs();
             let sources = Game.spawns[currSpawn].room.find(FIND_SOURCES);
+            var jobTitle = helper.getNextJob(jobs);
+            var job = jobs[jobTitle];
+            var neededEnergy = helper.getBodyCost(job.jobBody);
             // ----------------------------------------------------------
-            if(spawnObj.energy == 300){
+            if(spawnObj.energy >= neededEnergy){
                 // name the babby
                 let creepName = helper.makeName();
-                // ----------------------
-                jobs.forEach( function (job){
-                    let withRole =  _(Game.creeps).filter( { memory:{ role: job.jobTitle } } ).size();
-                    if(withRole < job.jobCount){
-                        // ---------------------
-                        for(let i in sources){
-                            let locals = _(Game.creeps).filter( { memory:{ role: job.jobTitle, target: sources[i].id } } ).size();
-                            if(locals < job.jobCount / 2){
-                                console.log("gonna make " + job.jobTitle);
-                                spawnObj.createCreep(job.jobBody, creepName, {role: job.jobTitle, target: sources[i].id});
-                            }
-                        }
-                    }
-                })
+                // ---------------------
+                console.log("gonna make " + job.jobTitle);
+                spawnObj.createCreep(job.jobBody, creepName, {role: job.jobTitle, target: sources[0].id});
             } 
-        } 
+        }
+        
         var tower = Game.getObjectById('TOWER_ID');
         if(tower) {
             var closestDamagedStructure = tower.pos.findClosestByRange(FIND_STRUCTURES, {

@@ -25,28 +25,34 @@ var self = module.exports = {
     
     goWork: function(creepName){
         let creep = Game.creeps[creepName];
-        var brain = creep.memory;
+        let brain = creep.memory;
+        if(!brain.target){brain.target = helper.getNextTarget(creepName)};
+        // ---------------------------
         if(brain.role == "harvester"){
-            self.goCollect(creep);
+            self.goCollect(creepName);
         }else if(brain.role == "upgrader"){
-            self.goUpgrade(creep);
+            self.goUpgrade(creepName);
         }else if(brain.role == 'scout'){
-            self.goScout(creep);
+            self.goScout(creepName);
         }else if(brain.role == 'builder'){
-            self.goBuild(creep);
+            self.goBuild(creepName);
+        }else if(brain.role == 'repairman'){
+            self.goFix(creepName);
         }
     },
     
-    goCollect: function(creep) {
+    goCollect: function(creepName) {
+        let creep = Game.creeps[creepName];
         var brain = creep.memory;
         //----------------------
         if(!brain.harvesting && creep.carry.energy == 0) {
             brain.harvesting = true;
-            brain.target = helper.getHighestSource(creep);
+            brain.target = helper.getNextTarget(creepName);
             creep.say('🐤 harvest');
         }
         if(brain.harvesting && creep.carry.energy == creep.carryCapacity) { 
             brain.harvesting = false;
+            brain.target = null;
             creep.say('🐤 deposit');
         }
         if(brain.harvesting == true){
@@ -70,17 +76,19 @@ var self = module.exports = {
         }
     },
 
-    goUpgrade: function(creep){
+    goUpgrade: function(creepName){
+        let creep = Game.creeps[creepName];
         var sources = creep.room.find(FIND_SOURCES);
         let brain = creep.memory;
         // ---------------------
         if(brain.upgrading && creep.carry.energy == 0) {
             brain.upgrading = false;
-            brain.target = helper.getHighestSource(creep);
+            brain.target = helper.getNextTarget(creepName);
             creep.say('🌸 harvest');
         }
         if(!brain.upgrading && creep.carry.energy == creep.carryCapacity) { 
             brain.upgrading = true;
+            brain.target = null;
             creep.say('🌸 upgrade');
 
         }
@@ -96,7 +104,8 @@ var self = module.exports = {
             }
         }
     }, 
-    goScout: function(creep){
+    goScout: function(creepName){
+        let creep = Game.creeps[creepName];
         var exits = Game.map.describeExits(creep.room.name);
         var route = Game.map.findRoute(creep.room.name, exits[3]); //right room
         if(route.length > 0) {
@@ -104,16 +113,17 @@ var self = module.exports = {
             creep.moveTo(exit);
         } 
     },
-    goBuild: function(creep) {
+    goBuild: function(creepName) {
+        let creep = Game.creeps[creepName];
         let brain = creep.memory;
-
         if(brain.building && creep.carry.energy == 0) {
             brain.building = false;
-            brain.target = helper.getHighestSource(creep);
+            brain.target = helper.getNextTarget(creepName);
             creep.say('🚧 harvest');
         }
         if(!brain.building && creep.carry.energy == creep.carryCapacity) {
             brain.building = true;
+            brain.target = null;
             creep.say('🚧 build');
         }
 
@@ -126,12 +136,54 @@ var self = module.exports = {
             }
         }
         else {
-            var sources = creep.room.find(FIND_SOURCES);
+            target = Game.getObjectById(brain.target);
+            if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
+            }
+        }
+    },
+    goFix: function(creepName) {
+        let creep = Game.creeps[creepName];
+        let brain = creep.memory;
+        if(brain.repairing && creep.carry.energy == 0) {
+            brain.repairing = false;
+            brain.target = helper.getNextTarget(creepName);
+            creep.say('👌 harvest');
+        }
+        if(!brain.repairing && creep.carry.energy == creep.carryCapacity) {
+            brain.repairing = true;
+            brain.target = null;
+            creep.say('👌 repair');
+        }
+
+        if(brain.repairing) {
+            // find all walls in the room
+            var percentage = 0.0003;
+            var target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                            filter: (s) => s.structureType == STRUCTURE_WALL &&
+                            s.hits / s.hitsMax < percentage
+                        });
+            if (!target == 0) {
+                if (creep.repair(target) == ERR_NOT_IN_RANGE) {
+                    creep.moveTo(target);
+                }
+            } else{ // buildy
+                var targets = creep.room.find(FIND_CONSTRUCTION_SITES);
+                if(targets.length) {
+                    if(creep.build(targets[0]) == ERR_NOT_IN_RANGE) {
+                        creep.moveTo(targets[0], {visualizePathStyle: {stroke: '#ffffff'}});
+                    }
+                }
+            }
+        }
+        else {
+            target = Game.getObjectById(brain.target);
             if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
             }
         }
     }
+
 }
 
 
