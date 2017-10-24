@@ -7,29 +7,28 @@
  * mod.thing == 'a thing'; // true
  */
  
-// Game.creeps['jo9'].role = 'scout';
-
 var helper = require('helper.functies');
-
+var settings = require('constants');
 
 var self = module.exports = {
     
-    giveMemories: function(creepName, creepRole, targetID) { // for brainwashing if necessary
+    giveMemories: function(creepName, creepRole) { // for brainwashing if necessary
         // ---------------------
         let creep = Game.creeps[creepName];
         let brain = creep.memory;
         // ---------------------
         brain.role = creepRole;
-        brain.target = targetID;
     },
     
     goWork: function(creepName){
         let creep = Game.creeps[creepName];
         let brain = creep.memory;
-        if(!brain.target){brain.target = helper.getNextTarget(creepName)};
         // ---------------------------
         if(brain.role == "harvester"){
-            self.goCollect(creepName);
+            //brain.target = helper.getNextTarget(creepName, "source");
+            self.goHarvest(creepName);
+        }else if(brain.role == "gatherer"){
+            self.goGather(creepName);
         }else if(brain.role == "upgrader"){
             self.goUpgrade(creepName);
         }else if(brain.role == 'scout'){
@@ -40,38 +39,45 @@ var self = module.exports = {
             self.goFix(creepName);
         }
     },
-    
-    goCollect: function(creepName) {
+    goHarvest: function(creepName){
+        let creep = Game.creeps[creepName];
+        var brain = creep.memory;
+        var target = Game.getObjectById(brain.target);
+        if(!brain.target){brain.target = helper.getNextTarget(creepName, "source");};
+        // --------------------------------------
+        if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
+            // get least populated energy source
+            creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
+        }else if(creep.harvest(target) == ERR_NOT_ENOUGH_RESOURCES){
+            brain.target = helper.getNextTarget(creepName, "source");
+        }else{
+            brain.harvesting = true;
+        }
+    },
+    goGather: function(creepName) {
         let creep = Game.creeps[creepName];
         var brain = creep.memory;
         //----------------------
-        if(!brain.harvesting && creep.carry.energy == 0) {
-            brain.harvesting = true;
+        if(!brain.gathering && creep.carry.energy == 0) {
+            brain.gathering = true;
             brain.target = helper.getNextTarget(creepName);
-            creep.say('🐤 harvest');
-        }
-        if(brain.harvesting && creep.carry.energy == creep.carryCapacity) { 
-            brain.harvesting = false;
-            brain.target = null;
+            creep.say('🐤 gather');
+        }else if(brain.gathering && creep.carry.energy == creep.carryCapacity) { 
+            brain.gathering = false;
+            brain.target = helper.getNextTarget(creepName, "storage");
             creep.say('🐤 deposit');
         }
-        if(brain.harvesting == true){
+        if(brain.gathering == true){
+            ///////////////////////////////////////////
             var target = Game.getObjectById(brain.target);
-            if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
-                // get least populated energy source
+            if(creep.pickup(target) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
-                }  
+            }else if(creep.pickup(target) == ERR_INVALID_TARGET){
+                brain.target = helper.getNextTarget(creepName);
+            }
         } else { // go deposit
-            var targets = creep.room.find(FIND_STRUCTURES, {
-                filter: (structure) => {
-                    return (structure.structureType == STRUCTURE_EXTENSION || structure.structureType == STRUCTURE_SPAWN) &&
-                        structure.energy < structure.energyCapacity;
-                }
-            });
-            if(targets.length > 0) {
-                if(creep.transfer(targets[0], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-                    creep.moveTo(targets[0], {visualizePathStyle: {stroke: '#ffffff'}});
-                }
+            if(creep.transfer(Game.spawns['FirstSpawn'], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+                creep.moveTo(Game.spawns['FirstSpawn'], {visualizePathStyle: {stroke: '#ffffff'}});
             }
         }
     },
@@ -90,7 +96,6 @@ var self = module.exports = {
             brain.upgrading = true;
             brain.target = null;
             creep.say('🌸 upgrade');
-
         }
         if(brain.upgrading == true){
             if(creep.upgradeController(creep.room.controller) == ERR_NOT_IN_RANGE) {
@@ -98,9 +103,11 @@ var self = module.exports = {
             }else{
             }
         }else{
-            target = Game.getObjectById(brain.target);
-            if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
+            var target = Game.getObjectById(brain.target);
+            if(creep.pickup(target) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
+            }else if(creep.pickup(target) == ERR_INVALID_TARGET){
+                brain.target = helper.getNextTarget(creepName);
             }
         }
     }, 
@@ -136,9 +143,11 @@ var self = module.exports = {
             }
         }
         else {
-            target = Game.getObjectById(brain.target);
-            if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
+            var target = Game.getObjectById(brain.target);
+            if(creep.pickup(target) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
+            }else if(creep.pickup(target) == ERR_INVALID_TARGET){
+                brain.target = helper.getNextTarget(creepName);
             }
         }
     },
@@ -177,9 +186,11 @@ var self = module.exports = {
             }
         }
         else {
-            target = Game.getObjectById(brain.target);
-            if(creep.harvest(target) == ERR_NOT_IN_RANGE) {
+            var target = Game.getObjectById(brain.target);
+            if(creep.pickup(target) == ERR_NOT_IN_RANGE) {
                 creep.moveTo(target, {visualizePathStyle: {stroke: '#ffaa00'}});
+            }else if(creep.pickup(target) == ERR_INVALID_TARGET){
+                brain.target = helper.getNextTarget(creepName);
             }
         }
     }
